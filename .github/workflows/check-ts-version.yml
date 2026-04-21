@@ -1,0 +1,81 @@
+name: Check TS3 Version
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Check for new TS3 server release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Fetch latest TS3 version info
+        id: ts
+        run: |
+          JSON=$(curl -s https://teamspeak.com/versions/server.json)
+          NEW_VERSION=$(echo "$JSON" | jq -r '.linux.x86_64.version')
+          NEW_CHECKSUM=$(echo "$JSON" | jq -r '.linux.x86_64.checksum')
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "checksum=$NEW_CHECKSUM" >> $GITHUB_OUTPUT
+
+      - name: Read current baked version
+        id: current
+        run: |
+          CURRENT=$(grep -m1 'ARG TS_VERSION=' Dockerfile | cut -d= -f2)
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+
+      - name: Skip if already up to date
+        if: steps.ts.outputs.version == steps.current.outputs.version
+        run: |
+          echo "Already at ${{ steps.current.outputs.version }}, nothing to do."
+
+      - name: Check for existing PR
+        if: steps.ts.outputs.version != steps.current.outputs.version
+        id: pr_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="bump/ts3-${{ steps.ts.outputs.version }}"
+          COUNT=$(gh pr list --head "$BRANCH" --state open --json number --jq length)
+          echo "open_prs=$COUNT" >> $GITHUB_OUTPUT
+          if [ "$COUNT" -gt 0 ]; then
+            echo "PR already open for branch $BRANCH, skipping."
+          fi
+
+      - name: Update Dockerfile and Readme with new version
+        if: steps.ts.outputs.version != steps.current.outputs.version && steps.pr_check.outputs.open_prs == '0'
+        run: |
+          NEW_VER="${{ steps.ts.outputs.version }}"
+          NEW_SUM="${{ steps.ts.outputs.checksum }}"
+          sed -i "s|^ARG TS_VERSION=.*|ARG TS_VERSION=${NEW_VER}|" Dockerfile
+          sed -i "s|^ARG TS_CHECKSUM=.*|ARG TS_CHECKSUM=${NEW_SUM}|" Dockerfile
+          sed -i "s|TS3%20version-[0-9.]*-orange|TS3%20version-${NEW_VER}-orange|g" Readme.md
+
+      - name: Open Pull Request
+        if: steps.ts.outputs.version != steps.current.outputs.version && steps.pr_check.outputs.open_prs == '0'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "bump: TeamSpeak3 server ${{ steps.ts.outputs.version }}"
+          branch: "bump/ts3-${{ steps.ts.outputs.version }}"
+          title: "bump: TeamSpeak3 server ${{ steps.ts.outputs.version }}"
+          body: |
+            Automated version bump.
+
+            | Field | Value |
+            |-------|-------|
+            | Previous version | `${{ steps.current.outputs.version }}` |
+            | New version | `${{ steps.ts.outputs.version }}` |
+            | SHA-256 checksum | `${{ steps.ts.outputs.checksum }}` |
+
+            Merge this PR to trigger a new Docker image build and push to GHCR.
+          labels: automated,dependencies

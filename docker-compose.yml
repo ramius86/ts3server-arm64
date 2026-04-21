@@ -1,0 +1,33 @@
+services:
+  teamspeak:
+    # Use a specific version tag for reproducibility, or 'latest' for auto-updates via Watchtower.
+    # Available tags: ghcr.io/ramius86/ts3server-arm64:<TS3_VERSION>
+    image: ${TS3_IMAGE:-ghcr.io/ramius86/ts3server-arm64:latest}
+    container_name: teamspeak3
+    restart: unless-stopped
+    ports:
+      - "9987:9987/udp"           # Voice
+      - "127.0.0.1:10011:10011"   # ServerQuery (raw) — localhost only; change to "10011:10011" to allow remote access
+      - "30033:30033/tcp"         # File transfer
+    volumes:
+      - ./data:/teamspeak/save
+    environment:
+      - TIME_ZONE=Europe/Rome
+      - PUID=1000
+      - PGID=1000
+      - INIFILE=1
+      - DEBUG=0
+      - TS3SERVER_LICENSE=accept
+      # ===== BOX64 DYNAREC TUNING =====
+      # Only env vars with documented effect on Box64 are included.
+      # Variables like BOX64_AVX, BOX64_VRAM, BOX64_NOPULSE do NOT exist in Box64 and are intentionally omitted.
+      # Note: nice/renice priority adjustment is NOT possible on Oracle Cloud A1 (hypervisor blocks CAP_SYS_NICE).
+      - BOX64_DYNAREC=1             # Enable JIT recompiler (default on, explicit for clarity)
+      - BOX64_DYNAREC_STRONGMEM=1   # Enforce x86 strong memory model — improves stability under load
+      - BOX64_DYNAREC_WAIT=1        # Boolean 0|1: wait for JIT block to be ready before executing (default: 1)
+                                    # 0 = fall back to interpreter while compiling (useful for heavy multithread/JIT apps, not TS3)
+                                    # 1 = always execute compiled native code — correct choice for a steady-state server
+      - BOX64_DYNAREC_FLUSH=0       # Reduce JIT cache flush frequency — lower overhead
+      - BOX64_MALLOC=1              # Use libc malloc (correct value is '1', not 'libc')
+      - BOX64_LOG=0                 # Disable verbose logging in production
+      - BOX64_NOBANNER=1            # Suppress startup banner

@@ -1,0 +1,20 @@
+# CI & GitHub tooling — not needed in the image
+.github/
+.trivy.yaml
+
+# Documentation
+Readme.md
+
+# Local deployment config — users edit this, it must not land in the image
+docker-compose.yml
+
+# Git internals
+.git/
+.gitignore
+
+# Editor/IDE artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

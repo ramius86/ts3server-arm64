@@ -1,0 +1,43 @@
+name: Lint
+
+on:
+  push:
+    paths:
+      - '*.sh'
+      - 'Dockerfile'
+      - '.github/workflows/*.yml'
+  pull_request:
+    paths:
+      - '*.sh'
+      - 'Dockerfile'
+      - '.github/workflows/*.yml'
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        env:
+          SHELLCHECK_OPTS: -e SC2148 -e SC1091
+        with:
+          scandir: '.'
+          severity: warning
+          check_together: 'yes'
+
+  hadolint:
+    name: Hadolint (Dockerfile)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Hadolint
+        uses: hadolint/hadolint-action@master
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3008

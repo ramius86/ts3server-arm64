@@ -1,0 +1,95 @@
+name: Smoke Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'entrypoint.sh'
+      - 'startup.sh'
+      - 'docker-compose.yml'
+      - '.github/workflows/smoke-test.yml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'entrypoint.sh'
+      - 'startup.sh'
+      - 'docker-compose.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-test:
+    name: Build and Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Local Image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          tags: ts3server-arm64:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start Container
+        run: |
+          docker compose up -d
+        env:
+          TS3_IMAGE: ts3server-arm64:test
+
+      - name: Wait for Healthcheck
+        run: |
+          echo "Waiting for TeamSpeak 3 server to become healthy (this may take several minutes due to Box64 and QEMU)..."
+          TIMEOUT=600
+          ELAPSED=0
+          while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' teamspeak3 || echo "starting")
+            echo "Current status: $STATUS ($ELAPSED seconds)"
+            
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Server is HEALTHY!"
+              exit 0
+            fi
+            
+            # If unhealthy, we check logs before failing to see if it's just a temporary failure
+            if [ "$STATUS" = "unhealthy" ] && [ "$ELAPSED" -gt 120 ]; then
+              echo "Server reported UNHEALTHY. Detailed logs:"
+              docker logs teamspeak3
+              exit 1
+            fi
+            
+            sleep 15
+            ELAPSED=$((ELAPSED + 15))
+          done
+          echo "Timeout reached. Current server logs:"
+          docker logs teamspeak3
+          exit 1
+
+      - name: Verify Log Forwarding
+        run: |
+          if docker logs teamspeak3 2>&1 | grep -q "Log forwarder: tailing logs"; then
+            echo "Log forwarding verification: PASSED"
+          else
+            echo "Log forwarding verification: FAILED (Log forwarder notice not found in stdout)"
+            docker logs teamspeak3
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

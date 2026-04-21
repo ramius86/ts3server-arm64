@@ -1,0 +1,77 @@
+name: Check Debian Base Image Update
+
+on:
+  schedule:
+    # Run daily at 07:00 UTC (1h after check-ts-version)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Check for updated debian:trixie-slim digest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.5
+
+      - name: Get current digest from Dockerfile
+        id: current
+        run: |
+          CURRENT=$(grep -m1 'ARG DEBIAN_DIGEST=' Dockerfile | cut -d= -f2)
+          echo "digest=$CURRENT" >> $GITHUB_OUTPUT
+
+      - name: Get latest digest from registry
+        id: latest
+        run: |
+          DIGEST=$(crane digest --platform linux/arm64 arm64v8/debian:trixie-slim)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Latest arm64v8/debian:trixie-slim digest: $DIGEST"
+
+      - name: Skip if digest unchanged
+        if: steps.current.outputs.digest == steps.latest.outputs.digest
+        run: |
+          echo "Base image unchanged (${{ steps.latest.outputs.digest }}), nothing to do."
+
+      - name: Check for existing PR
+        if: steps.current.outputs.digest != steps.latest.outputs.digest
+        id: pr_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COUNT=$(gh pr list --head "bump/debian-base" --state open --json number --jq length)
+          echo "open_prs=$COUNT" >> $GITHUB_OUTPUT
+          if [ "$COUNT" -gt 0 ]; then
+            echo "PR already open for debian base bump, skipping."
+          fi
+
+      - name: Update Dockerfile
+        if: steps.current.outputs.digest != steps.latest.outputs.digest && steps.pr_check.outputs.open_prs == '0'
+        run: |
+          sed -i "s|^ARG DEBIAN_DIGEST=.*|ARG DEBIAN_DIGEST=${{ steps.latest.outputs.digest }}|" Dockerfile
+
+      - name: Open Pull Request
+        if: steps.current.outputs.digest != steps.latest.outputs.digest && steps.pr_check.outputs.open_prs == '0'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "bump: debian:trixie-slim base image (${{ steps.latest.outputs.digest }})"
+          branch: "bump/debian-base"
+          title: "bump: debian:trixie-slim base image update"
+          body: |
+            The `arm64v8/debian:trixie-slim` base image has a new digest.
+            Merging this PR will trigger a fresh Docker build picking up the latest Debian packages (security patches included).
+
+            | Field | Value |
+            |-------|-------|
+            | Previous digest | `${{ steps.current.outputs.digest }}` |
+            | New digest      | `${{ steps.latest.outputs.digest }}` |
+
+            Merge this PR to rebuild and push the image to GHCR.
+          labels: automated,dependencies

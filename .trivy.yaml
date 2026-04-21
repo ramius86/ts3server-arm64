@@ -1,0 +1,5 @@
+# Trivy configuration for docker-publish.yml scan step.
+# The published image is arm64-only; without this, Trivy on the amd64 runner
+# fails with "no child with platform linux/amd64 in index".
+image:
+  platform: linux/arm64

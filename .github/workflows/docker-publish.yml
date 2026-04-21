@@ -1,0 +1,92 @@
+name: Docker Publish
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'entrypoint.sh'
+      - 'startup.sh'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Build and push arm64 image to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.5
+
+      - name: Extract TS3 version from Dockerfile
+        id: meta
+        run: |
+          VERSION=$(grep -m1 'ARG TS_VERSION=' Dockerfile | cut -d= -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building image for TS3 version: $VERSION"
+
+      - name: Get Debian trixie-slim version string
+        id: debian
+        run: |
+          DEBIAN_VERSION=$(crane config --platform linux/arm64 arm64v8/debian:trixie-slim \
+            | jq -r '.config.Labels["org.opencontainers.image.version"] // "trixie"')
+          echo "version=$DEBIAN_VERSION" >> $GITHUB_OUTPUT
+          echo "Debian base version: $DEBIAN_VERSION"
+
+      - name: Set up QEMU (arm64 emulation)
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
+            ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}-debian-${{ steps.debian.outputs.version }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.base.name=arm64v8/debian:trixie-slim
+          annotations: |
+            org.opencontainers.image.description=Unofficial TeamSpeak 3 server Docker image for ARM64, running the x86_64 binary via box64 emulation.
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:latest
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+          skip-version-check: true
+          trivy-config: .trivy.yaml
