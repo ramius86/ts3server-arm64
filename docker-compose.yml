@@ -18,16 +18,11 @@ services:
       - INIFILE=1
       - DEBUG=0
       - TS3SERVER_LICENSE=accept
-      # ===== BOX64 DYNAREC TUNING =====
-      # Only env vars with documented effect on Box64 are included.
-      # Variables like BOX64_AVX, BOX64_VRAM, BOX64_NOPULSE do NOT exist in Box64 and are intentionally omitted.
-      # Note: nice/renice priority adjustment is NOT possible on Oracle Cloud A1 (hypervisor blocks CAP_SYS_NICE).
-      - BOX64_DYNAREC=1             # Enable JIT recompiler (default on, explicit for clarity)
-      - BOX64_DYNAREC_STRONGMEM=1   # Enforce x86 strong memory model — improves stability under load
-      - BOX64_DYNAREC_WAIT=1        # Boolean 0|1: wait for JIT block to be ready before executing (default: 1)
-                                    # 0 = fall back to interpreter while compiling (useful for heavy multithread/JIT apps, not TS3)
-                                    # 1 = always execute compiled native code — correct choice for a steady-state server
-      - BOX64_DYNAREC_FLUSH=0       # Reduce JIT cache flush frequency — lower overhead
-      - BOX64_MALLOC=1              # Use libc malloc (correct value is '1', not 'libc')
-      - BOX64_LOG=0                 # Disable verbose logging in production
-      - BOX64_NOBANNER=1            # Suppress startup banner
+# ===== BOX64 DYNAREC TUNING =====
+      - BOX64_DYNAREC=1                 # Enable JIT recompiler (default on, explicit for clarity)
+      - BOX64_DYNAREC_STRONGMEM=1       # Enforce x86 strong memory model — improves SQLite stability under load
+      - BOX64_DYNAREC_WAIT=1            # Wait for JIT block to be ready before executing (correct for steady-state server)
+      - BOX64_DYNAREC_BIGBLOCK=2        # Build bigger dynarec blocks, stop only on elf memory overlap (default, explicit)
+      - BOX64_DYNAREC_CALLRET=1         # Optimize CALL/RET opcodes, skip jump table when possible — small boost for single-threaded x86 code
+      - BOX64_LOG=0                     # Disable verbose logging in production
+      - BOX64_NOBANNER=1                # Suppress startup banner
