@@ -11,8 +11,8 @@ FROM arm64v8/debian@${DEBIAN_DIGEST} AS downloader
 # DO NOT edit manually — check-ts-version.yml patches them automatically
 # via `sed` whenever a new release is detected on teamspeak.com/versions/server.json,
 # opening a PR (branch bump/ts3-X.X.X) with the updated values.
-ARG TS_VERSION=3.13.7
-ARG TS_CHECKSUM=775a5731a9809801e4c8f9066cd9bc562a1b368553139c1249f2a0740d50041e
+ARG TS_VERSION=3.13.8
+ARG TS_CHECKSUM=a3c4658e09892d3dbd8ea752d0de42dc7d111bf44d09721927f0f4782496eb2d
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -48,7 +48,7 @@ FROM arm64v8/debian@${DEBIAN_DIGEST}
 
 # Redeclared to make TS_VERSION available in this stage (ARG scope resets after FROM).
 # Value is inherited from the build-arg passed by docker-publish.yml at build time.
-ARG TS_VERSION=3.13.7
+ARG TS_VERSION=3.13.8
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

@@ -14,7 +14,7 @@
 ![Platform](https://img.shields.io/badge/platform-linux%2Farm64-blue)
 ![Base Image](https://img.shields.io/badge/base-debian%3Atrixie--slim-informational)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![TS3 Version](https://img.shields.io/badge/TS3%20version-3.13.7-orange)
+![TS3 Version](https://img.shields.io/badge/TS3%20version-3.13.8-orange)
 ![Last Commit](https://img.shields.io/github/last-commit/ramius86/ts3server-arm64)
 
 [![Publish](https://github.com/ramius86/ts3server-arm64/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ramius86/ts3server-arm64/actions/workflows/docker-publish.yml)
