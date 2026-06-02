@@ -10,7 +10,7 @@ set -e
     while [ ! -d "/teamspeak/logs" ]; do sleep 1; done
     # Wait for the first log file to be created by TeamSpeak
     until ls /teamspeak/logs/ts3server_*.log >/dev/null 2>&1; do sleep 1; done
-    echo "Log forwarder: starting dynamic log tailer..."
+    echo "Log forwarder: tailing logs to stdout (dynamic tailer)..."
 
     current_files=""
     tail_pid=""
