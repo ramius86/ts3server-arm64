@@ -24,6 +24,10 @@ jobs:
           JSON=$(curl -s https://teamspeak.com/versions/server.json)
           NEW_VERSION=$(echo "$JSON" | jq -r '.linux.x86_64.version')
           NEW_CHECKSUM=$(echo "$JSON" | jq -r '.linux.x86_64.checksum')
+          if [ -z "$NEW_VERSION" ] || [ "$NEW_VERSION" = "null" ] || [ -z "$NEW_CHECKSUM" ] || [ "$NEW_CHECKSUM" = "null" ]; then
+            echo "ERROR: Failed to fetch valid version or checksum from TeamSpeak API."
+            exit 1
+          fi
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "checksum=$NEW_CHECKSUM" >> $GITHUB_OUTPUT
 
