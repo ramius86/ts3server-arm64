@@ -79,11 +79,14 @@ fix_ownership() {
     DESIRED_UID=$(id -u ts)
     DESIRED_GID=$(id -g ts)
 
-    if [ "$CURRENT_UID" != "$DESIRED_UID" ] || [ "$CURRENT_GID" != "$DESIRED_GID" ]; then
-        echo "Ownership mismatch detected on $TARGET. Fixing permissions recursively..."
+    # We also check if any nested files or directories have incorrect ownership.
+    # find -print -quit exits immediately on the first match, making it extremely fast.
+    if [ "$CURRENT_UID" != "$DESIRED_UID" ] || [ "$CURRENT_GID" != "$DESIRED_GID" ] || \
+       [ -n "$(find "$TARGET" \( ! -user ts -o ! -group ts \) -print -quit 2>/dev/null)" ]; then
+        echo "Ownership mismatch detected on $TARGET (or nested files). Fixing permissions recursively..."
         chown -R ts:ts "${TS_DIR}" /teamspeak_cached
     else
-        echo "Ownership on $TARGET is already correct ($DESIRED_UID:$DESIRED_GID). Skipping recursive chown."
+        echo "Ownership on $TARGET and all nested files is already correct ($DESIRED_UID:$DESIRED_GID). Skipping recursive chown."
     fi
 }
 
@@ -114,15 +117,51 @@ if [ "$PUID" -eq 0 ] || [ "$PGID" -eq 0 ]; then
     exit 1
 fi
 
-# Create ts user/group using PUID/PGID env vars.
+# Create or update group 'ts' using PGID env var.
 # PUID/PGID are used instead of UID/GID to avoid clashing with the
 # bash $UID read-only builtin (SC3028 in POSIX sh context).
-if ! getent group "$PGID" >/dev/null 2>&1; then
-    groupadd -g "$PGID" ts 2>/dev/null || true
+if getent group ts >/dev/null 2>&1; then
+    CURRENT_GID=$(getent group ts | cut -d: -f3)
+    if [ "$CURRENT_GID" != "$PGID" ]; then
+        echo "Updating GID of existing group 'ts' to $PGID..."
+        groupmod -g "$PGID" ts
+    fi
+else
+    if getent group "$PGID" >/dev/null 2>&1; then
+        EXISTING_GROUP=$(getent group "$PGID" | cut -d: -f1)
+        echo "Group '$EXISTING_GROUP' already has GID $PGID. Renaming it to 'ts'..."
+        groupmod -n ts "$EXISTING_GROUP"
+    else
+        groupadd -g "$PGID" ts 2>/dev/null || true
+    fi
 fi
-if ! id -u ts >/dev/null 2>&1; then
-    useradd -u "$PUID" -g "$PGID" -d /teamspeak ts 2>/dev/null || \
-        useradd -g "$PGID" -d /teamspeak ts
+
+# Set a non-interactive shell path (security hardening)
+SHELL_PATH="/usr/sbin/nologin"
+[ -x "/usr/bin/nologin" ] && SHELL_PATH="/usr/bin/nologin"
+[ -x "/sbin/nologin" ] && SHELL_PATH="/sbin/nologin"
+[ -x "/bin/false" ] && [ "$SHELL_PATH" = "/usr/sbin/nologin" ] && [ ! -x "/usr/sbin/nologin" ] && SHELL_PATH="/bin/false"
+
+# Create or update user 'ts' using PUID/PGID env vars.
+if id -u ts >/dev/null 2>&1; then
+    CURRENT_UID=$(id -u ts)
+    CURRENT_GID=$(id -g ts)
+    if [ "$CURRENT_UID" != "$PUID" ] || [ "$CURRENT_GID" != "$PGID" ]; then
+        echo "Updating UID/GID of existing user 'ts' to $PUID/$PGID..."
+        usermod -u "$PUID" -g "$PGID" -s "$SHELL_PATH" ts
+    else
+        usermod -s "$SHELL_PATH" ts
+    fi
+else
+    if id -u "$PUID" >/dev/null 2>&1; then
+        EXISTING_USER=$(id -un "$PUID")
+        echo "WARNING: UID $PUID is already taken by user '$EXISTING_USER'. Creating 'ts' with dynamic UID."
+        useradd -g "$PGID" -d /teamspeak -s "$SHELL_PATH" ts 2>/dev/null || \
+            useradd -g "$PGID" -d /teamspeak ts
+    else
+        useradd -u "$PUID" -g "$PGID" -d /teamspeak -s "$SHELL_PATH" ts 2>/dev/null || \
+            useradd -g "$PGID" -d /teamspeak ts
+    fi
 fi
 
 # Update timezone if necessary
