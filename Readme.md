@@ -85,6 +85,7 @@ All options are controlled via environment variables in `docker-compose.yml`.
 | `INIFILE` | `0` | Boolean (0|1) to enable `ts3server.ini` generation/usage |
 | `DEBUG` | `0` | Boolean (0|1) to skip server launch and hold the container for shell access |
 | `TS3SERVER_LICENSE` | `accept` | Mandatory EULA acceptance |
+| `LOG_CLEANUP_DAYS` | `7` | Keep logs for this many days (0 disables cleanup) |
 
 ---
 

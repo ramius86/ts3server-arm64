@@ -12,12 +12,13 @@ services:
     volumes:
       - ./data:/teamspeak/save
     environment:
-      - TIME_ZONE=Europe/Rome
-      - PUID=1000
-      - PGID=1000
-      - INIFILE=1
-      - DEBUG=0
-      - TS3SERVER_LICENSE=accept
+      - TIME_ZONE=${TIME_ZONE:-Europe/Rome}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - INIFILE=${INIFILE:-1}
+      - DEBUG=${DEBUG:-0}
+      - TS3SERVER_LICENSE=${TS3SERVER_LICENSE:-accept}
+      - LOG_CLEANUP_DAYS=${LOG_CLEANUP_DAYS:-7}
 # ===== BOX64 DYNAREC TUNING =====
       - BOX64_DYNAREC=1                 # Enable JIT recompiler (default on, explicit for clarity)
       - BOX64_DYNAREC_STRONGMEM=1       # Enforce x86 strong memory model — improves SQLite stability under load
