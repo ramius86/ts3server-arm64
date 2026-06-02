@@ -57,19 +57,14 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 #   tini       - PID 1: signal forwarding + zombie reaping
 #   gosu       - privilege drop from root to ts user
 #   tzdata     - timezone support (configurable via TIME_ZONE env)
-#   locales    - en_US.UTF-8 locale for ts3server
-#   procps     - pkill used in entrypoint signal handling
 #   ca-certificates - TLS verification
 #   netcat-openbsd  - used for healthchecks
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-        procps ca-certificates locales \
+        ca-certificates \
         box64 tzdata tini gosu netcat-openbsd && \
 
     mkdir -p /teamspeak /teamspeak_cached && \
-    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    dpkg-reconfigure --frontend=noninteractive locales && \
-    update-locale LANG=en_US.UTF-8 && \
     ln -fs /usr/share/zoneinfo/UTC /etc/localtime && \
     echo "UTC" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata && \
@@ -77,7 +72,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-ENV LANG=en_US.UTF-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # Runtime environment
 # PUID/PGID: user/group ID for the ts3server process (avoids clash with bash $UID builtin)
@@ -87,6 +83,7 @@ ENV PGID=1000
 ENV INIFILE=0
 ENV DEBUG=0
 ENV TS3SERVER_LICENSE=accept
+ENV LOG_CLEANUP_DAYS=7
 # Baked version — informational, used by startup.sh to write /teamspeak/version
 ENV TS_VERSION=${TS_VERSION}
 
