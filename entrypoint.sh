@@ -31,8 +31,25 @@ set -e
 ) &
 TAIL_PID=$!
 
+# Start log cleanup in background (runs every 24 hours).
+(
+    while true; do
+        sleep 86400  # 24 hours
+        DAYS="${LOG_CLEANUP_DAYS:-7}"
+        case "$DAYS" in ''|*[!0-9]*) DAYS=7 ;; esac
+        if [ "$DAYS" -gt 0 ]; then
+            if [ -d "/teamspeak/save/logs" ]; then
+                echo "Log cleaner: removing logs older than $DAYS days..."
+                find "/teamspeak/save/logs" -name "*.log" -type f -mtime +"$DAYS" -delete || true
+            fi
+        fi
+    done
+) &
+CLEANUP_PID=$!
+
 cleanup() {
     [ -n "$TAIL_PID" ] && kill "$TAIL_PID" 2>/dev/null || true
+    [ -n "$CLEANUP_PID" ] && kill "$CLEANUP_PID" 2>/dev/null || true
 }
 trap cleanup EXIT TERM INT
 

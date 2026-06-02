@@ -87,11 +87,20 @@ fix_ownership() {
     fi
 }
 
-# Cleans logs older than 7 days to prevent the volume from filling up.
+# Cleans logs older than LOG_CLEANUP_DAYS days to prevent the volume from filling up.
 cleanup_old_logs() {
-    if [ -d "${TS_SAVE}/logs" ]; then
-        echo "Cleaning up logs older than 7 days..."
-        find "${TS_SAVE}/logs" -name "*.log" -type f -mtime +7 -delete || true
+    # LOG_CLEANUP_DAYS can be unset, empty, or numeric. Default to 7.
+    # If set to 0, cleanup is disabled.
+    DAYS="${LOG_CLEANUP_DAYS:-7}"
+    case "$DAYS" in ''|*[!0-9]*) echo "WARNING: LOG_CLEANUP_DAYS must be numeric; defaulting to 7"; DAYS=7 ;; esac
+
+    if [ "$DAYS" -gt 0 ]; then
+        if [ -d "${TS_SAVE}/logs" ]; then
+            echo "Cleaning up logs older than $DAYS days..."
+            find "${TS_SAVE}/logs" -name "*.log" -type f -mtime +"$DAYS" -delete || true
+        fi
+    else
+        echo "Log cleanup is disabled (LOG_CLEANUP_DAYS=0)."
     fi
 }
 
