@@ -12,6 +12,9 @@ on:
       - 'Dockerfile'
       - '.github/workflows/*.yml'
 
+permissions:
+  contents: read
+
 jobs:
   shellcheck:
     name: ShellCheck
