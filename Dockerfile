@@ -107,4 +107,4 @@ WORKDIR /teamspeak
 ENTRYPOINT ["/usr/bin/tini", "--", "/teamspeak/entrypoint.sh"]
 
 HEALTHCHECK --interval=1m --timeout=5s --start-period=2m --retries=3 \
-    CMD nc -z 127.0.0.1 10011 || exit 1
+    CMD ["nc", "-z", "127.0.0.1", "10011"]
