@@ -19,11 +19,12 @@ services:
       - DEBUG=${DEBUG:-0}
       - TS3SERVER_LICENSE=${TS3SERVER_LICENSE:-accept}
       - LOG_CLEANUP_DAYS=${LOG_CLEANUP_DAYS:-7}
-# ===== BOX64 DYNAREC TUNING =====
+# ===== BOX64 TUNING (ARM64 EMULATION) =====
+# Safe defaults are baked directly into the Dockerfile image.
+# Override here only if specific tuning is needed.
       - BOX64_DYNAREC=1                 # Enable JIT recompiler (default on, explicit for clarity)
       - BOX64_DYNAREC_STRONGMEM=1       # Enforce x86 strong memory model — improves SQLite stability under load
-      - BOX64_DYNAREC_WAIT=1            # Wait for JIT block to be ready before executing (correct for steady-state server)
-      - BOX64_DYNAREC_BIGBLOCK=2        # Build bigger dynarec blocks, stop only on elf memory overlap (default, explicit)
-      - BOX64_DYNAREC_CALLRET=1         # Optimize CALL/RET opcodes, skip jump table when possible — small boost for single-threaded x86 code
+      - BOX64_DYNACACHE=1               # Enable JIT compilation cache
+      - BOX64_DYNACACHE_FOLDER=/teamspeak/save/.box64cache # Store JIT cache in volume for near-instant restarts
       - BOX64_LOG=0                     # Disable verbose logging in production
       - BOX64_NOBANNER=1                # Suppress startup banner

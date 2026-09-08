@@ -64,7 +64,7 @@ RUN apt-get update && \
         ca-certificates \
         box64 tzdata tini gosu netcat-openbsd && \
 
-    mkdir -p /teamspeak /teamspeak_cached && \
+    mkdir -p /teamspeak && \
     ln -fs /usr/share/zoneinfo/UTC /etc/localtime && \
     echo "UTC" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata && \
@@ -86,6 +86,14 @@ ENV TS3SERVER_LICENSE=accept
 ENV LOG_CLEANUP_DAYS=7
 # Baked version — informational, used by startup.sh to write /teamspeak/version
 ENV TS_VERSION=${TS_VERSION}
+
+# Box64 runtime tuning defaults for ARM64 server stability and performance
+ENV BOX64_DYNAREC=1
+ENV BOX64_DYNAREC_STRONGMEM=1
+ENV BOX64_LOG=0
+ENV BOX64_NOBANNER=1
+ENV BOX64_DYNACACHE=1
+ENV BOX64_DYNACACHE_FOLDER=/teamspeak/save/.box64cache
 
 LABEL org.opencontainers.image.title="TeamSpeak 3 Server (ARM64)"
 LABEL org.opencontainers.image.description="Unofficial TeamSpeak 3 server Docker image for ARM64, running the x86_64 binary via box64 emulation on arm64v8/debian:trixie-slim."

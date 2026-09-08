@@ -14,6 +14,7 @@ set -e
 
     current_files=""
     tail_pid=""
+    first_run=1
     while true; do
         new_files=$(ls /teamspeak/logs/ts3server_*.log 2>/dev/null | sort)
         if [ "$new_files" != "$current_files" ]; then
@@ -22,8 +23,14 @@ set -e
                 wait "$tail_pid" 2>/dev/null || true
             fi
             current_files="$new_files"
-            # Use tail -n 0 to avoid printing existing logs again when tail restarts
-            tail -n 0 -F -q $current_files &
+            # On first start use -n +1 to ensure the ServerAdmin token is printed;
+            # on subsequent log rotations use -n 0 to avoid printing existing logs again.
+            if [ "$first_run" -eq 1 ]; then
+                tail -n +1 -F -q $current_files &
+                first_run=0
+            else
+                tail -n 0 -F -q $current_files &
+            fi
             tail_pid=$!
         fi
         sleep 10
@@ -56,7 +63,7 @@ trap cleanup EXIT TERM INT
 # Hand off to the TS3 server as ts user.
 # Using exec here is standard practice to let tini manage the process.
 if [ -e "/teamspeak/ts3server_minimal_runscript.sh" ]; then
-    exec gosu ts /teamspeak/ts3server_minimal_runscript.sh
+    exec gosu ts /teamspeak/ts3server_minimal_runscript.sh "$@"
 else
     echo "ERROR: startup.sh failed to create ts3server_minimal_runscript.sh."
     exit 1

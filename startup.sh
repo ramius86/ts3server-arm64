@@ -22,7 +22,7 @@ create_minimal_runscript() {
 	        # Run the server briefly to create the ini file, then continue
 	        /usr/bin/box64 ./ts3server inifile=save/ts3server.ini createinifile=1
 	    fi
-	    exec /usr/bin/box64 ./ts3server inifile=save/ts3server.ini
+	    exec /usr/bin/box64 ./ts3server inifile=save/ts3server.ini "$@"
 	else
 	    exec /usr/bin/box64 ./ts3server "$@"
 	fi
@@ -68,7 +68,7 @@ create_symlinks() {
 # but the base directory must ALWAYS be writable by the 'ts' user.
 fix_ownership() {
     # 1. Always ensure the base installation directory is owned by ts (non-recursive, very fast)
-    chown ts:ts "${TS_DIR}" /teamspeak_cached
+    chown ts:ts "${TS_DIR}"
 
     # 2. Check the persistent volume
     TARGET="${TS_SAVE}"
@@ -84,7 +84,7 @@ fix_ownership() {
     if [ "$CURRENT_UID" != "$DESIRED_UID" ] || [ "$CURRENT_GID" != "$DESIRED_GID" ] || \
        [ -n "$(find "$TARGET" \( ! -user ts -o ! -group ts \) -print -quit 2>/dev/null)" ]; then
         echo "Ownership mismatch detected on $TARGET (or nested files). Fixing permissions recursively..."
-        chown -R ts:ts "${TS_DIR}" /teamspeak_cached
+        chown -R ts:ts "${TS_DIR}"
     else
         echo "Ownership on $TARGET and all nested files is already correct ($DESIRED_UID:$DESIRED_GID). Skipping recursive chown."
     fi

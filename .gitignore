@@ -1,0 +1,14 @@
+# Docker persistent data & local environment
+data/
+.env
+
+# Box64 JIT cache (if mounted or generated on host)
+.box64cache/
+
+# OS & Editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
