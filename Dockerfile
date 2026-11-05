@@ -1,4 +1,4 @@
-ARG DEBIAN_DIGEST=sha256:1470991b497d26788dc4d6f438bf5690c6ba0d499235d237e55f4b43caea7a75
+ARG DEBIAN_DIGEST=sha256:24a01011d10eba3a023bc8585b9650b8b29021240d4217c05b905e09ef4a5232
 
 # ============================================================
 # Stage 1 — downloader
